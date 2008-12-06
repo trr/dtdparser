@@ -1,0 +1,16 @@
+Places where 'do' now falls down because it is only allowed over POST
+
+== do=deleted in action_delete
+
+Change this to a=deleted.  An action is now able to output a message then change back to view mode
+
+== do=movenode in action_move
+
+== do=cron in docron
+
+== do=set in type-user-profile-email-email and others
+
+== do=activate in type-user-registration-activate-email and others
+
+== do=massmove in item_massmove
+

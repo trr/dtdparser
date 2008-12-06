@@ -1,0 +1,124 @@
+ZIP/JAR file tests
+
+
+
+7-zip###########################################################################
+
+- breaks if you edit "size of central directory" in either dir
+
+- breaks if you increase "offset of central directory"
+
+- DOES NOT break when decreasing "offset of central directory", even to zero
+  
+- breaks if you edit either "index of disk" or "index of disk with start of central directory"
+
+- breaks if you edit the PK\x05\x06 signature
+
+- breaks if you increase "length of comment" beyond actual length to end of file
+
+- DOES NOT break adding arbitrary data to end of file, greater than "length of comment" value
+  100 extra bytes - ok
+  1000 extra bytes - ok
+  10000 extra bytes - ok
+  60000 extra bytes - ok
+  70000 extra bytes - ok
+  hundreds of thousands of extra bytes - ok
+  
+- DOES NOT break with another PK\x05\x06 byte sequence occurring after the true one
+
+What can we conclude?
+
+- REQUIRED FOR 7ZIP
+  - PK\x05\x06 signature or ZIP64 end of central directory signature exists anywhere in file and may be followed by accidental PK\x05\x06 at any point
+  - For non-multifile, current disk number must equal disk number with start of central directory
+  
+  
+  
+
+- 7ZIP appears to require that:
+  - Length of central directory given must be exact
+  - Offset of central directory must be no higher than its actual offset (ie, "where to start looking")
+  - Disk number and disk number with start of central directory must have certain values
+  - PK\x05\x06 signature must exist, though can be anywhere in the file
+  - Length of comment must be less than or equal to length of rest of file
+  - PK\x01\x02 signature must exist for each entry of central directory
+- However, it tolerates
+  - offset of central directory set to any value less than the proper one
+  - any amount of arbitrary data at end of file after ZIP file comment
+  - any number of the sequence PK\x05\x06 appearing coincidentally after the true one
+
+Java runtime (1.6?) ############################################################
+
+- Does not appear to tolerate arbitrary data after the comment
+
+- TOLERATES comment if comment size is accurate
+
+- Does not tolerate changing "offset of central directory" in either direction
+
+- TOLERATES modification of "size of central directory" in either direction
+
+- Does not tolerate changing of PK\x01\x02 sig at start of central directory
+
+Detecting ZIP ##################################################################
+
+A file is a ZIP if any of the following:
+
+- File begins with PK\x03\x04
+- File begins with PK\x07\x08
+- End of central directory PK\x05\x06 is found in file and is valid enough to
+  locate the central directory PK\x01\x02 EITHER by the offset from the start of
+	volume OR by subtracting its size from the current position
+- ZIP64 end of central directory locator PK\x06\x07 is found and it is valid
+  enough to locate the start of the ZIP64 end of central directory PK\x06\x06
+  by 64-bit offset
+- ZIP64 end of central directory PK\x06\x06 is found and it is valid enough to
+  locate the start of the central directory PK\x01\x02 EITHER by size of offset
+  
+Detecting CAB ##################################################################
+
+- File begins with 4 bytes: "MSCF"
+
+Detecting CLASS (Java) #########################################################
+
+- File begins with 4 bytes: 0xCAFEBABE
+
+Detecting SWF (Shockwave/Flash) ################################################
+
+- File begins with 3 bytes: "FWS"
+
+Detecting DCR (Shockwave/Director) #############################################
+
+- File begins with 4 bytes: "XFIR"
+
+Detecting PDF (Adobe Acrobat/Reader) ###########################################
+
+- File begins with 4 bytes: "%PDF" case insensitively
+
+Detecting MOV (Apple Quicktime) ################################################
+
+- The four bytes starting at offset 4 bytes (ie the second DWORD of the file)
+  is one of:
+  
+  - "moov"
+  - "free"
+  - "skip"
+  - "mdat"
+  - "pnot"
+  - "ftyp"
+  
+Detecting MP4 (Subset of MOV, Apple Quicktime/MP4) #############################
+
+The 4 bytes from offset 4 bytes are "ftyp"
+
+Detecting XAP (Microsoft Silverlight, subset of ZIP) ###########################
+
+An XAP is a ZIP file, and may contain a file with a filename of "AppManifest.xaml"
+
+Detecting JAR (Java archive) ###################################################
+
+A JAR file is a ZIP file, and may contain a file called "META-INF/MANIFEST.MF"
+
+Detecting EXE (DOS/Win/OCX/etc) ################################################
+
+The first 2 bytes are "MZ" or "ZM"
+

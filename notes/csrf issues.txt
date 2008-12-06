@@ -1,0 +1,80 @@
+Logging in reliably:
+
+1. Someone submits U/P to server
+2. Server sends session var
+
+- An attacker can submit their own username/password in a user request to the
+  server.  FAIL
+  
+1. Someone submits U/P to server along with token
+2. Server sends session var
+
+- An attacker can submit their own username/password in a user request to the
+  server.  Token would have to match something that only the user would know
+  (a cookie?) FAIL
+  
+1. Server sends random cookie to someone
+2. Same someone submits U/P to server along with token based on cookie
+3. Server sends session var
+
+- An attacker could not match the token to the cookie the user received.  Seems
+  secure now.  This seems like the way to go.
+  
+  However, this requires the server to always send a cookie to the user before
+  the user sees the login form.  PASS - BUT REQUIRES ALWAYS COOKIE
+  
+1. User indicates they want to sign in.
+2. Server sends user a random cookie and a login form with a token based on the same
+3. User sends U/P along with token based on cookie
+4. Server sets up session
+
+- An attacker could not match the token to the cookie the user received.  PASS
+  
+1. Someone submits U/P to server
+2. Server replies with temporary cookie + redirect to itself with encoded form
+   of U/P and a token based on the temporary cookie.
+3. Server receives redirect and compares temporary cookies to token and if it
+   matches and U/P matches, issues session var
+   
+- An attacker could submit the U/P through the user's browser.  User's browser
+  will then load next page and get session var.  FAIL.
+  
+== TRANSFERRING SESSION TO ANOTHER DOMAIN
+
+1. User is logged in at domain A
+2. User arrives at domain B
+3. Domain B redirects to domain A saying "is this guy logged on for you?"
+4. Domain A redirects back to domain B saying "yeah I can vouch for him.  here's
+   which session he's using and here's something only I would know about that
+   session.
+
+- An attacker could be the user logged in at domain A.  He could then go to B,
+  get a magic URL from A and send that URL to a victim.  Victim then is logged
+  in to B as attacker.  FAIL
+  
+1. User is logged in at domain A
+2. User arrives at domain B
+3. Domain B sets random cookie for user
+4. Domain B redirects to domain A saying "is this guy logged in for you? here's
+   a random token."
+5. Domain A redirects back to domain B saying "yeah I can vouch for him.  here's
+   which session he's using and here's something only I would know about that
+   session.  And here's that token back.
+6. Domain B checks token against cookie it set for A.
+
+
+- An attacker could be the user logged in at domain A.  He could then go to B,
+  get the cookie, go to A and get the magic URL and send that URL to the victim.
+  Victim would not be logged on as attacker though, because victim doesn't have
+  that cookie on that domain.  PASS - CHOSEN SOLUTION
+   
+== ALLOWING DOWNLOAD OF FILE THAT MIGHT BE A JAR (or similar scariness)
+
+- Allow download if referrer is local.  Don't allow it to be cached.
+- If referrer isn't local, do not allow it unless form is POSTed, with the usual
+  requirement of a token in the post.
+
+- An attacker could forge the referrer header and request the file on behalf of
+  a user.  It could then rely on that request being cached at the user's end,
+  and could then include it in an <applet> tag.  THIS WILL ONLY WORK IF WE CAN
+  RELY ON MARKING THE FILE UNCACHEABLE

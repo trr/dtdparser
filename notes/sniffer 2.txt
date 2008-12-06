@@ -1,0 +1,14 @@
+Detect ZIP (or JAR/EAR/WAR/etc) file
+
+	4 bytes: PK\x05\x06 within last 65536+22 bytes of file
+	
+	AND either 4 bytes: PK\x03\x04 or 4 bytes: PK\x01\x02 somewhere earlier in the file
+
+	Further parsing of file is possible, but complicated by lots of factors
+	
+Detect CAB file:
+
+	4 bytes: "MSCF" at start
+	+ isbinary
+
+	
