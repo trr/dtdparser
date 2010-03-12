@@ -4,79 +4,47 @@
 
 // for parsing DTDs
 
-if (!defined('RESOURCE_DIR')) define('RESOURCE_DIR', '../../www/resources/');
-require_once(RESOURCE_DIR . 'includes/elementpattern.inc.php');
-
 class dtdparser
 {
-	function dtdparser($filename)
+	function __construct($filename)
 	{
 		$value = implode('', file('dtd/' . $filename));
 		$this->process($value);
 	}
 	
-	function outputtofile($dtdname)
+	public function outputtofile($dtdname)
 	{
 		$filename = "dtd-$dtdname.inc.php";
 		$output = '<' . "?php\n\n";
 		$output .= "// $filename\n";
-		$output .= "// This file was automatically generated from the given DTD file.  For use in\n";
-		$output .= "// DTD based filtering routines\n\n";
+		$output .= "// This file was automatically generated from the given DTD file.\n// For use in DTD based filtering routines.\n\n";
 		
-		$output .= 'if (isset($cache[\''.$dtdname.'\'])) trigger_error("DTD '
-			.$dtdname.' already included", E_USER_ERROR);';
+		$output .= 'if (isset($cache[\''.$dtdname.'\'])) return;' . "\n";
 		
-		$output .= '$cache[\''.$dtdname.'\'][\'elements\']=unserialize(\'' .
-			str_replace("'", '\\\'', serialize($this->elementpatterns)) . "');";
-		$output .= '$cache[\''.$dtdname.'\'][\'xmlentities\']=unserialize(\'' .
-			str_replace("'", '\\\'', serialize($this->xmlentities)) . "');";
-		$output .= '$cache[\''.$dtdname.'\'][\'attlist\']=unserialize(\'' .
-			str_replace("'", '\\\'', serialize($this->attlist)) . "');";
-		$output .= '$cache[\''.$dtdname.'\'][\'attreq\']=unserialize(\'' .
-			str_replace("'", '\\\'', serialize($this->attreq)) . "');";
-		$output .= '$cache[\''.$dtdname.'\'][\'incl\']=unserialize(\'' .
-			str_replace("'", '\\\'', serialize($this->incl)) . "');";
+		$output .= '$cache[\''.$dtdname.'\'][\'elements\'] = '
+			. $this->exportvar($this->elements) . ';' . "\n";
+		$output .= '$cache[\''.$dtdname.'\'][\'xmlentities\'] = '
+			. $this->exportvar($this->xmlentities) . ';' . "\n";
+		$output .= '$cache[\''.$dtdname.'\'][\'attlist\'] = '
+			. $this->exportvar($this->attlist) . ';' . "\n";
+		$output .= '$cache[\''.$dtdname.'\'][\'attreq\'] = '
+			. $this->exportvar($this->attreq) . ';' . "\n";
+		$output .= '$cache[\''.$dtdname.'\'][\'incl\'] = '
+			. $this->exportvar($this->incl) . ';' . "\n";
+
 		$output .= "\n?" . '>';
 		$file = fopen($filename, 'wb');
 		fwrite($file, $output);
 		fclose($file);
 	}
-	
-	function getobjectcontents($pattern, $init = false)
-	// $pattern must be an associative array of
-	// 'contents' => array(...), 'type' => 'sel'|'mul'|'seq',
-	// 'quant' => '+','1','*','?'
-	{						
-		if (is_scalar($pattern))
-		{
-			$canrecycle = false;
-			$isrequired = true;
-			$type = 'sel';
-			$contents = array($pattern);
-		}
-		else
-		{
-			$canrecycle = $pattern['quant'] == '+' || $pattern['quant'] == '*';
-			$isrequired = $pattern['quant'] == '+' || $pattern['quant'] == '1';
-			$type = $pattern['type'];
-			$contents = is_scalar($pattern['contents'])
-				? array($pattern['contents']) : $pattern['contents'];
-			foreach ($contents as $key => $val) if (!is_scalar($val))
-				$contents[$key] = $this->getobjectcontents($val, true);
-		}
-		$obj = new elementpattern($contents, $canrecycle, $isrequired, $type, $init);
-		return $obj;
+
+	private static function exportvar($var)
+	{
+		$output = var_export($var, true);
+		return $output;
 	}
 	
-	function createobjects()
-	{
-		$this->elementpatterns = array();
-		foreach ($this->elements as $elementname => $pattern)
-			$this->elementpatterns[$elementname] = $this->getobjectcontents($pattern);
-	}	
-	
-	// public
-	function lowercaseelements()
+	public function lowercaseelements()
 	// converts element names to lowercase - useful with case-insensitive (HTML)
 	// or all-lowercase (XHTML) languages
 	{
@@ -92,7 +60,7 @@ class dtdparser
 		$this->process_incl_lower($this->incl);
 	}
 	
-	function process_incl_lower(&$elements)
+	private function process_incl_lower(&$elements)
 	{
 		foreach ($elements as $id => $inclgroup)
 		{
@@ -108,7 +76,7 @@ class dtdparser
 		}
 	}
 	
-	function translateelementname($name)
+	private function translateelementname($name)
 	{
 		if ($name == 'EMPTY') return $name;
 		if ($name == 'CDATA') return 'CDATA';
@@ -116,14 +84,12 @@ class dtdparser
 		return $name;
 	}
 	
-	// private
-	function process_att_lower(&$elements)
+	private function process_att_lower(&$elements)
 	{
 		foreach ($elements as $id => $val) $elements[$id] = array_change_key_case($val, CASE_LOWER);
 	}
 	
-	// private
-	function process_elementcontent_lower(&$elements)
+	private function process_elementcontent_lower(&$elements)
 	{
 		foreach ($elements as $id => $val)
 		{
@@ -134,19 +100,18 @@ class dtdparser
 			else
 			{
 				$contents = &$elements[$id]['contents'];
-				if (is_string($contents))
-				{
-					$contents = $this->translateelementname($contents);
-				}
-				elseif (is_array($contents)) 
+				if (is_array($contents)) 
 					$this->process_elementcontent_lower($contents);
 				else
-					exit('Unknown content type');
+				{
+					print_r($elements[$id]);
+					trigger_error('Unknown contents type', E_USER_ERROR);
+				}
 			}
 		}
 	}
 	
-	function process(&$value)
+	private function process(&$value)
 	{
 		$i = 0;
 		while ($this->gettag($value, $i, strlen($value)))
@@ -154,7 +119,7 @@ class dtdparser
 		}
 	}
 		
-	function gettag(&$value, &$i, $max)
+	private function gettag(&$value, &$i, $max)
 	{
 		while ($i < $max && $value[$i] != '<' && $value[$i] != '%')
 		{
@@ -318,9 +283,11 @@ class dtdparser
 		return true;
 	}
 	
-	function parseselector(&$data, $elementname)
+	private function parseselector(&$data, $elementname, $collapse = false)
 	{
-		if (preg_match('/^[a-zA-Z0-9#]+$/', trim($data))) return $this->elements[$elementname] = trim($data);
+		if (preg_match('/^[a-zA-Z0-9#]+$/', trim($data))) 
+			return $this->elements[$elementname] = ($collapse || (trim($data) == 'EMPTY'))
+		 	? trim($data) : array('type' => 'seq', 'quant' => '1', 'contents' => array(trim($data)));
 		// inclusions/exclusions
 		$incl = array();
 		$excl = array();
@@ -348,12 +315,12 @@ class dtdparser
 			while ($data !== '' and $data[0] != ')')
 			{
 				$char = $data[0];
-				if ($char == '(') $contents[] = dtdparser::parseselector($data, $elementname);
+				if ($char == '(') $contents[] = dtdparser::parseselector($data, $elementname, true);
 				else
 				{
 					if (preg_match('/^([a-zA-Z0-9#]+)([\+\*\?]?)/', $data, $matches))
 					{
-						if ($matches[2]) $contents[] = array('type' => 'seq', 'quant' => $matches[2], 'contents' => $matches[1]);			
+						if ($matches[2]) $contents[] = array('type' => 'seq', 'quant' => $matches[2], 'contents' => array($matches[1]));			
 							else $contents[] = $matches[1];
 						$data = substr($data, strlen($matches[0]));
 					}
@@ -375,7 +342,9 @@ class dtdparser
 				$quant = "$char";
 			}
 			$type = $typechar == '|' ? 'sel' : ($typechar == '&' ? 'mul' : 'seq');
-			if ($quant == '1' and count($contents) == 1) return $this->elements[$elementname] = current($contents);
+			if (($collapse || current($contents) == 'EMPTY') 
+				&& $quant == '1' && count($contents) == 1) 
+				return $this->elements[$elementname] = current($contents);
 			
 			return $this->elements[$elementname] = array('type' => $type, 'quant' => $quant, 'contents' => $contents);
 		}
@@ -383,12 +352,12 @@ class dtdparser
 		{
 			$quant = $matches[2] ? $matches[2] : '1';
 			$data = substr($data, strlen($matches[0]));
-			return $this->elements[$elementname] = array('type' => 'seq', 'quant' => $quant, 'contents' => $matches[1]);			
+			return $this->elements[$elementname] = array('type' => 'seq', 'quant' => $quant, 'contents' => array($matches[1]));			
 		}
 		exit("Unknown selector in '$data'");
 	}
 	
-	function parser_parseattributes($element, $data)
+	private function parser_parseattributes($element, $data)
 	{
 		$i = 0;
 		// strip comments
@@ -424,7 +393,7 @@ class dtdparser
 		}
 	}
 	
-	function parser_getendconditional(&$value, &$i)
+	private function parser_getendconditional(&$value, &$i)
 	{
 		if ($i > strlen($value)) return NULL;
 		$endpos = strpos($value, ']]>', $i);
@@ -440,7 +409,7 @@ class dtdparser
 		return NULL;		
 	}
 	
-	function parser_getexpression(&$value, &$i)
+	private function parser_getexpression(&$value, &$i)
 	{
 		if ($i > strlen($value)) return NULL;
 		$char = $value[$i];
@@ -454,7 +423,7 @@ class dtdparser
 		
 	}
 	
-	function parser_getrestoftag(&$value, &$i)
+	private function parser_getrestoftag(&$value, &$i)
 	{
 		$result = preg_match('/^(([^">]("[^"]+")*(<[^">]+>)*)+)\s*/', substr($value, $i, 32768), $matches);
 		if (!$result) $this->halt_error('Restoftag expected', substr($value, $i, 128));
@@ -466,7 +435,7 @@ class dtdparser
 		return $data;	
 	}
 	
-	function parser_getattributevalue(&$value, &$i)
+	private function parser_getattributevalue(&$value, &$i)
 	{
 		$result = preg_match('/^\s*(\([^)]+\))\s*/', substr($value, $i, 32768), $matches);
 		if (!$result) $result = preg_match('/^\s*([^\s>]+)\s*/', substr($value, $i, 32768), $matches);
@@ -477,7 +446,7 @@ class dtdparser
 		return preg_replace('/\s+/', '', $data);	
 	}
 	
-	function parser_getelementnames(&$value, &$i)
+	private function parser_getelementnames(&$value, &$i)
 	{
 		$result = preg_match('/^\s*/', substr($value, $i, 256), $matches);
 		if ($result) $i += strlen($matches[0]);
@@ -500,14 +469,14 @@ class dtdparser
 		return $elementnames;
 	}
 	
-	function parser_getwhitespace(&$value, &$i)
+	private function parser_getwhitespace(&$value, &$i)
 	{
 		$l = strspn($value, " \t\n\r\f", $i);
 		if ($l) $i += $l;
 		return $l ? true : NULL;
 	}
 	
-	function parser_getidentifier(&$value, &$i)
+	private function parser_getidentifier(&$value, &$i)
 	{
 		//$this->parser_getcomments($value, $i);
 		$result = preg_match('/^\s*([a-zA-Z0-9_:%\.-]+)\s*/', substr($value, $i, 256), $matches);
@@ -519,7 +488,7 @@ class dtdparser
 		return $matches[1];
 	}
 	
-	function parser_getminimisationrules(&$value, &$i)
+	private function parser_getminimisationrules(&$value, &$i)
 	// these are used in SGML but not XML DTDs.  returns null if they're not found
 	// but you can ignore that null if you are using XML
 	{
@@ -534,7 +503,7 @@ class dtdparser
 		return $result;
 	}
 	
-	function parser_getentitytype(&$value, &$i)
+	private function parser_getentitytype(&$value, &$i)
 	// used in SGML but not XML.  returns null if it's not found but you can
 	// ignore that null if you are using XML
 	{
@@ -545,7 +514,7 @@ class dtdparser
 		return $matches[1];
 	}
 	
-	function parser_getvalue(&$value, &$i)
+	private function parser_getvalue(&$value, &$i)
 	{
 		$checkdata = substr($value, $i, 32768);
 	
@@ -563,7 +532,7 @@ class dtdparser
 		return $data;	
 	}
 	
-	function replaceentities($data)
+	private function replaceentities($data)
 	{
 		while (preg_match('/\%([^\;\s|]+)(\;|\b)/', $data, $matches))
 		{
@@ -574,14 +543,14 @@ class dtdparser
 		return $data;
 	}
 	
-	function parser_tokentype(&$value, &$i)
+	private function parser_tokentype(&$value, &$i)
 	{
 		if ($value[$i] == '"' or $value[$i] == "'") return 'value';
 		if ($value[$i] == '>') return 'endoftag';
 		else return 'identifier';
 	}
 	
-	function halt_error($message, $near = NULL, $element = NULL)
+	private function halt_error($message, $near = NULL, $element = NULL)
 	{
 		$msg = "Error: $message";
 		if ($near !== NULL) $msg .= " near \"$near\""; 
@@ -589,7 +558,7 @@ class dtdparser
 		exit($msg);
 	}
 	
-	function getpublicentity($externalid)
+	private function getpublicentity($externalid)
 	{
 		$knownpublicentities = array(
 			'-//W3C//DTD HTML 4.01 Transitional//EN' => 'html4-loose.dtd',
@@ -639,8 +608,7 @@ class dtdparser
 		return $knownpublicentities[$externalid];
 	}
 	
-	//static
-	function rebuildall()
+	public static function rebuildall()
 	{
 		$dtds = array(
 			'html', // html 2.0
@@ -662,7 +630,6 @@ class dtdparser
 			echo "Parsing $dtdname...\n";
 			$dtdparser = new dtdparser("$dtdname.dtd");
 			$dtdparser->lowercaseelements();
-			$dtdparser->createobjects();
 			$dtdparser->outputtofile($dtdname);
 		}	
 		echo "All parsing complete.\n";
