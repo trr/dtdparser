@@ -283,11 +283,10 @@ class dtdparser
 		return true;
 	}
 	
-	private function parseselector(&$data, $elementname, $collapse = false)
+	private function parseselector(&$data, $elementname)
 	{
 		if (preg_match('/^[a-zA-Z0-9#]+$/', trim($data))) 
-			return $this->elements[$elementname] = ($collapse || (trim($data) == 'EMPTY'))
-		 	? trim($data) : array('type' => 'seq', 'quant' => '1', 'contents' => array(trim($data)));
+			return $this->elements[$elementname] = trim($data);
 		// inclusions/exclusions
 		$incl = array();
 		$excl = array();
@@ -315,7 +314,7 @@ class dtdparser
 			while ($data !== '' and $data[0] != ')')
 			{
 				$char = $data[0];
-				if ($char == '(') $contents[] = dtdparser::parseselector($data, $elementname, true);
+				if ($char == '(') $contents[] = dtdparser::parseselector($data, $elementname);
 				else
 				{
 					if (preg_match('/^([a-zA-Z0-9#]+)([\+\*\?]?)/', $data, $matches))
@@ -342,8 +341,7 @@ class dtdparser
 				$quant = "$char";
 			}
 			$type = $typechar == '|' ? 'sel' : ($typechar == '&' ? 'mul' : 'seq');
-			if (($collapse || current($contents) == 'EMPTY') 
-				&& $quant == '1' && count($contents) == 1) 
+			if ($quant == '1' && count($contents) == 1) 
 				return $this->elements[$elementname] = current($contents);
 			
 			return $this->elements[$elementname] = array('type' => $type, 'quant' => $quant, 'contents' => $contents);
