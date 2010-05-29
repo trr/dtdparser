@@ -78,8 +78,9 @@ class dtdparser
 	
 	private function translateelementname($name)
 	{
-		if ($name == 'EMPTY') return $name;
-		if ($name == 'CDATA') return 'CDATA';
+		if ($name == 'EMPTY') return null;
+		if ($name == '#PCDATA') return '#text';
+		if ($name == 'CDATA') return '#cdata-section';
 		if (preg_match('#^[a-zA-Z:_]#', $name)) return strtolower($name);
 		return $name;
 	}
