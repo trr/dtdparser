@@ -1,8 +1,0 @@
-What do we need to fetch each time?
-
-*	Find the node itself
-*	Load nodeoptions
-*	Load info on active trinkets
-		Probably only needed if we load a trinket
-*	Look up permissions
-*	Look up addpermissions
